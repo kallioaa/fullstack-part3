@@ -6,31 +6,50 @@ const cors = require('cors');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 app.use(express.static('build'));
+app.use(express.json());
 
-// Morgan token
+// morgan middleware
 morgan.token('body', (req) => (req.method === 'POST' ? JSON.stringify(req.body) : ''));
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'));
+
+// error handling middleware
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+
+  if (error.name === 'CastError') {
+    console.log('huutistas');
+    return response.status(400).send({ error: 'malformatted id' });
+  }
+
+  next(error);
+};
+
+// routes
 
 app.get('/api/persons', (req, res) => {
   Person.find({}).then((persons) => res.json(persons));
 });
 
-app.get('/api/persons/:id', (req, res) => {
+app.get('/api/persons/:id', (req, res, next) => {
   const id = req.params.id;
-  Person.findById(id).then((person) => {
-    if (person) {
-      res.json(person);
-    } else {
-      res.status(404).end();
-    }
-  });
+  Person.findById(id)
+    .then((note) => {
+      if (note) {
+        res.json(note);
+      } else {
+        res.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
 });
 
-app.delete('/api/persons/:id', (req, res) => {
+app.delete('/api/persons/:id', (req, res, next) => {
   const id = req.params.id;
-  Person.findByIdAndDelete(id).then(() => res.json(204).end());
+  Person.findByIdAndDelete(id)
+    .then(() => res.json(204).end())
+    .catch((error) => next(error));
 });
 
 app.post('/api/persons', (req, res) => {
@@ -45,19 +64,35 @@ app.post('/api/persons', (req, res) => {
   }
 
   if (!number) {
-    return res.status(400).json({
-      error: 'number missing',
-    });
+    return res.status(400).json({ error: 'number missing' });
   }
-  const person = new Person({ name, number });
-  person.save().then((result) => {
+
+  // Checking if a person with the same name exists
+
+  Person.findOne({ name }).then((person) => {
+    if (person) {
+      person.number = number;
+      person.save().then((result) => res.json(result));
+    } else {
+      const newPerson = new Person({ name, number });
+      newPerson.save().then((result) => {
+        res.json(result);
+      });
+    }
+  });
+  /*
+  const newPerson = new Person({ name, number });
+  newPerson.save().then((result) => {
     res.json(result);
   });
+  */
 });
 
 app.get('/info', (req, res) => {
   res.send(`Phonebook has info for ${persons.length} people.<br><br>${new Date()}`);
 });
+
+app.use(errorHandler);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
