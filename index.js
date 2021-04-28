@@ -58,34 +58,24 @@ app.post('/api/persons', (req, res) => {
   console.log(`${name} ${number}`);
 
   if (!name) {
-    return res.status(400).json({
-      error: 'name missing',
-    });
+    return res.status(400).json({ error: 'name missing' });
   }
 
   if (!number) {
     return res.status(400).json({ error: 'number missing' });
   }
-
-  // Checking if a person with the same name exists
-
-  Person.findOne({ name }).then((person) => {
-    if (person) {
-      person.number = number;
-      person.save().then((result) => res.json(result));
-    } else {
-      const newPerson = new Person({ name, number });
-      newPerson.save().then((result) => {
-        res.json(result);
-      });
-    }
-  });
-  /*
   const newPerson = new Person({ name, number });
   newPerson.save().then((result) => {
     res.json(result);
   });
-  */
+});
+
+app.put('/api/persons/:id', (req, res, next) => {
+  const id = req.params.id;
+  const updatedPerson = req.body;
+  Person.findByIdAndUpdate(id, updatedPerson, { new: true })
+    .then((updatedPerson) => res.json(updatedPerson))
+    .catch((error) => next(error));
 });
 
 app.get('/info', (req, res) => {
