@@ -19,8 +19,10 @@ const errorHandler = (error, request, response, next) => {
   console.error(error.message);
 
   if (error.name === 'CastError') {
-    console.log('huutistas');
     return response.status(400).send({ error: 'malformatted id' });
+  }
+  if (error.name === 'ValidationError') {
+    return response.status(400).json({ error: error.message });
   }
 
   next(error);
@@ -52,7 +54,7 @@ app.delete('/api/persons/:id', (req, res, next) => {
     .catch((error) => next(error));
 });
 
-app.post('/api/persons', (req, res) => {
+app.post('/api/persons', (req, res, next) => {
   const name = req.body.name;
   const number = req.body.number;
   console.log(`${name} ${number}`);
@@ -65,9 +67,12 @@ app.post('/api/persons', (req, res) => {
     return res.status(400).json({ error: 'number missing' });
   }
   const newPerson = new Person({ name, number });
-  newPerson.save().then((result) => {
-    res.json(result);
-  });
+  newPerson
+    .save()
+    .then((result) => {
+      res.json(result);
+    })
+    .catch((error) => next(error));
 });
 
 app.put('/api/persons/:id', (req, res, next) => {
